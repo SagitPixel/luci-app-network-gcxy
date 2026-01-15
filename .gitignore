@@ -1,0 +1,5 @@
+bin/
+obj/
+*.ipk
+*.o
+.DS_Store
