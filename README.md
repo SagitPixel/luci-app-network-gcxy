@@ -49,4 +49,4 @@
 
 
 📄 许可证
-MIT License
+[MIT License](https://github.com/SagitPixel/luci-app-network-gcxy/blob/main/LICENSE)
