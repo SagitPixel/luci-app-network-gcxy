@@ -1,6 +1,6 @@
 # luci-app-network-gcxy
 
-一个专为 OpenWrt 设计的校园网自动认证插件，基于 Lua 和 Shell 实现。(本插件暂未测试是否可用，预计2026.3进行实机测试)
+一个专为 OpenWrt 设计的校园网自动认证插件，基于 Lua 和 Shell 实现。
 
 ## 🌟 功能特点
 - **LuCI 图形化界面**：支持直接在路由器 Web 页面填写手机号和配置。
@@ -22,7 +22,7 @@
   ./scripts/feeds update gcxy
   ./scripts/feeds install -a -p gcxy
   ```
-在 make menuconfig 中选中： Network -> network-gcxy
+在 make menuconfig 中选中： Network -> network-gcxy 然后开始编译
 
 方式二：手动放入 Package 目录
 将本项目整个文件夹克隆到 package/network-gcxy：
@@ -30,7 +30,7 @@
   cd package
   git clone https://github.com/SagitPixel/luci-app-network-gcxy.git
   ```
-回到源码主目录运行 make menuconfig 并在network中勾选network-gcxy即可。
+回到源码主目录运行 make menuconfig 并在network中勾选network-gcxy即可开始编译。
 
 📖 使用说明
 进入 OpenWrt 后台，点击 “网络” -> “校园网认证”。
