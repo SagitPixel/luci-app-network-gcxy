@@ -10,7 +10,7 @@ define Package/network-gcxy
   SECTION:=net
   CATEGORY:=Network
   TITLE:=Auto Login Network Monitor For Xjie
-  DEPENDS:=+curl +ip-full
+  DEPENDS:=+curl +ip-full +jsonfilter
 endef
 
 define Build/Prepare
@@ -29,14 +29,12 @@ define Package/network-gcxy/install
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_DIR) $(1)/usr/bin
 
-	# 注意：因为 Prepare 时已经把内容散开了，这里直接找 controller 目录
-	$(CP) $(PKG_BUILD_DIR)/controller/net_gcxy.lua $(1)/usr/lib/lua/luci/controller/
-	$(CP) $(PKG_BUILD_DIR)/model/cbi/net_gcxy.lua $(1)/usr/lib/lua/luci/model/cbi/
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/controller/net_gcxy.lua $(1)/usr/lib/lua/luci/controller/
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/model/cbi/net_gcxy.lua $(1)/usr/lib/lua/luci/model/cbi/
 	
-	# 这里直接找对应的文件
-	$(CP) $(PKG_BUILD_DIR)/network-gcxy.config $(1)/etc/config/network-gcxy
-	$(CP) $(PKG_BUILD_DIR)/network-gcxy.init $(1)/etc/init.d/network-gcxy
-	$(CP) $(PKG_BUILD_DIR)/network-gcxy.sh $(1)/usr/bin/network-gcxy.sh
+	$(INSTALL_CONF) $(PKG_BUILD_DIR)/network-gcxy.config $(1)/etc/config/network-gcxy
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/network-gcxy.init $(1)/etc/init.d/network-gcxy
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/network-gcxy.sh $(1)/usr/bin/network-gcxy.sh
 endef
 
 $(eval $(call BuildPackage,network-gcxy))
