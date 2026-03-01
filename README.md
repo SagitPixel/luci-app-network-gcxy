@@ -30,7 +30,7 @@
   cd package
   git clone https://github.com/SagitPixel/luci-app-network-gcxy.git
   ```
-回到源码主目录运行 make menuconfig 勾选即可。
+回到源码主目录运行 make menuconfig 并在network中勾选network-gcxy即可。
 
 📖 使用说明
 进入 OpenWrt 后台，点击 “网络” -> “校园网认证”。
