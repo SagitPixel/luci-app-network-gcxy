@@ -1,8 +1,9 @@
 local fs = require "nixio.fs"
 
-m = Map("network-gcxy", "校园网自动认证 (GCXY)", "后台每2分钟检测一次网络，断网自动重启WAN并认证。")
+-- 定义 Map
+m = Map("network-gcxy", "校园网自动认证 (GCXY)", "后台检测网络状态，断网自动尝试重连。")
 
--- 状态监控小节
+-- ==================== 状态监控小节 ====================
 s_status = m:section(TypedSection, "login", "当前状态")
 s_status.anonymous = true
 
@@ -25,7 +26,7 @@ function msg.cfgvalue(self, section)
     if not last_log or last_log == "" then
         return "尚无运行记录"
     end
-    
+
     if last_log:match("成功访问") then return "✅ 网络连接正常"
     elseif last_log:match("认证执行完毕") then return "🚀 认证请求已发送"
     elseif last_log:match("警告") then return "⚠️ 无法获取MAC地址"
@@ -34,7 +35,7 @@ function msg.cfgvalue(self, section)
     else return "⏳ 正在检测中..." end
 end
 
--- 配置管理小节
+-- ==================== 配置管理小节 ====================
 s = m:section(TypedSection, "login", "参数设置")
 s.anonymous = true
 
@@ -60,11 +61,10 @@ btn = s:option(Button, "_clear", "清理日志内容")
 btn.inputstyle = "remove"
 function btn.write(self, section)
     luci.sys.exec("> /var/log/network_gcxy.log")
+    luci.http.redirect(luci.dispatcher.build_url("admin", "network", "gcxy"))
 end
 
-return m
-
--- 先定义一个执行动作的小节
+-- ==================== 快捷操作小节 ====================
 s_cmd = m:section(TypedSection, "login", "快捷操作")
 s_cmd.anonymous = true
 
@@ -72,10 +72,8 @@ s_cmd.anonymous = true
 btn_auth = s_cmd:option(Button, "_auth", "强制执行认证")
 btn_auth.inputstyle = "apply"
 function btn_auth.write(self, section)
-    -- 调用脚本，并传入一个特殊参数让它知道是强制认证（或者直接执行认证部分的逻辑）
-    -- 这里最简单的方法是直接运行你的脚本文件
     luci.sys.exec("/usr/bin/network-gcxy.sh force_auth &")
-    luci.http.redirect(luci.dispatcher.build_url("admin", "network", "network_gcxy"))
+    luci.http.redirect(luci.dispatcher.build_url("admin", "network", "gcxy"))
 end
 
 -- 按钮 2：重连 WAN 口
@@ -89,6 +87,9 @@ end
 btn_test = s_cmd:option(Button, "_test", "立即检测网络")
 btn_test.inputstyle = "find"
 function btn_test.write(self, section)
-    -- 执行一次简单的 ping 或 curl 检测，结果会写入日志
     luci.sys.exec("/usr/bin/network-gcxy.sh test_now &")
+    luci.http.redirect(luci.dispatcher.build_url("admin", "network", "gcxy"))
 end
+
+-- 最后一步：必须在这里返回 m
+return m

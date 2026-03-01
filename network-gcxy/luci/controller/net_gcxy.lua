@@ -1,6 +1,6 @@
-module("luci.controller.network_gcxy", package.seeall)
+module("luci.controller.net_gcxy", package.seeall)
 
 function index()
-    -- entry(路径, 类型, 标题, 排序)
-    entry({"admin", "network", "network_gcxy"}, cbi("network_gcxy"), "校园网认证", 100).dependent = true
+    -- entry(路径, 对应的CBI模型, 菜单标题, 排序权重)
+    entry({"admin", "network", "gcxy"}, cbi("net_gcxy"), _("Campus Network"), 10).dependent = true
 end
