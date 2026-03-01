@@ -15,7 +15,7 @@
 1. 进入你的 OpenWrt 源码目录。
 2. 在 `feeds.conf.default` 文件末尾添加：
    ```text
-   src-git gcxy [https://github.com/SagitPixel/luci-app-network-gcxy.git](https://github.com/SagitPixel/luci-app-network-gcxy.git)
+   src-git gcxy https://github.com/SagitPixel/luci-app-network-gcxy.git
    ```
 更新并安装 Feed：
   ```text
@@ -28,7 +28,7 @@
 将本项目整个文件夹克隆到 package/network-gcxy：
   ```text
   cd package
-  git clone [https://github.com/SagitPixel/luci-app-network-gcxy.git](https://github.com/SagitPixel/luci-app-network-gcxy.git)
+  git clone https://github.com/SagitPixel/luci-app-network-gcxy.git
   ```
 回到源码主目录运行 make menuconfig 勾选即可。
 
