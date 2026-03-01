@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=network-gcxy
-PKG_VERSION:=0.1
+PKG_VERSION:=1.0
 PKG_RELEASE:=1
 
 include $(INCLUDE_DIR)/package.mk
@@ -9,7 +9,8 @@ include $(INCLUDE_DIR)/package.mk
 define Package/network-gcxy
   SECTION:=net
   CATEGORY:=Network
-  TITLE:=Auto Login Network Monitor For Xjie
+  TITLE:=Auto Login Network Monitor For Xjie Dormitory Network
+  PKG_ARCH:=all
   DEPENDS:=+curl +ip-full +jsonfilter
 endef
 
