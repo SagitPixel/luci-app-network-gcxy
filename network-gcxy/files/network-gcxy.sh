@@ -5,7 +5,7 @@
 export PATH="/usr/sbin:/usr/bin:/sbin:/bin"
 LOG_FILE="/var/log/network_gcxy.log"
 
-# --- [ 1. 核心认证函数 (保留原脚本的 Curl 细节) ] ---
+# --- [ 1. 核心认证函数  ] ---
 
 do_auth() {
     local phone="$1"
@@ -17,7 +17,7 @@ do_auth() {
     macdizhi=$(echo "$raw_mac" | tr '[:lower:]' '[:upper:]' | sed 's/:/-/g')
     [ -z "$macdizhi" ] && macdizhi="00-00-00-00-00-00"
 
-    # 获取 IP (使用 ubus + ip 双重保障)
+    # 获取 IP 地址
     userip=$(ubus call network.interface.wan status | jsonfilter -e '@["ipv4-address"][0].address' 2>/dev/null)
     [ -z "$userip" ] && userip=$(ip -4 addr show "br-wan" 2>/dev/null | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}' | head -n 1)
     [ -z "$userip" ] && userip=$(ip -4 addr show "wan" 2>/dev/null | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}' | head -n 1)
@@ -55,7 +55,7 @@ case "$1" in
         ;;
     "test")
         # 对应网页“立即检测”按钮
-        if curl -I -s -m 3 "https://www.baidu.com" >/dev/null; then
+        if curl -I -s -m 3 "https://www.bilibili.com" >/dev/null; then
             echo "[$(date '+%Y-%m-%d %H:%M:%S')] 手动检测：网络通畅 ✅" >> "$LOG_FILE"
         else
             echo "[$(date '+%Y-%m-%d %H:%M:%S')] 手动检测：网络不通 ❌" >> "$LOG_FILE"
@@ -66,56 +66,59 @@ case "$1" in
         [ "$ENABLED" != "1" ] && exit 0
         
         # 这里的参数完全照搬你的原脚本
-        TARGET_URLS="https://www.baidu.com https://www.qq.com https://www.douyin.com"
+        TARGET_URLS="https://www.baidu.com https://www.qq.com https://www.douyin.com https://www.bilibili.com"
         MIN_INTERVAL=120
         MAX_INTERVAL=240
         TIMEOUT=3
 
         while true; do
-            # 重新读取开关，防止网页关闭了脚本还在跑
             [ "$(uci -q get network-gcxy.main.enabled)" != "1" ] && exit 0
 
-            # --- 同步状态到 UI ---
             echo "正在检测中..." > /tmp/net_gcxy_status
             echo "正在发起拨测..." > /tmp/net_gcxy_action
-            
             echo "[$(date '+%Y-%m-%d %H:%M:%S')] 正在检测中..." >> "$LOG_FILE"
-            
-            failed_count=0
-            for url in $TARGET_URLS; do
-                if ! curl -I -s -m "$TIMEOUT" "$url" >/dev/null 2>&1; then
-                    failed_count=$((failed_count + 1))
-                fi
-            done
 
-            if [ "$failed_count" -eq 3 ]; then
-                # --- 同步状态到 UI ---
+            # --- 改进：使用状态码判断联网状态 ---
+            # 只有访问 http://www.baidu.com 返回 200 才是真有网
+            CHECK_HTTP=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 "http://www.baidu.com")
+
+            if [ "$CHECK_HTTP" = "200" ]; then
+                # --- 网络正常 ---
+                echo "正在监控中..." > /tmp/net_gcxy_status
+                echo "网络正常，待机中" > /tmp/net_gcxy_action
+                echo "[$(date '+%Y-%m-%d %H:%M:%S')] 成功访问百度 (HTTP 200)，网络连接正常" >> "$LOG_FILE"
+            else
+                # --- 网络异常 (可能是断网 000 或 劫持 302) ---
                 echo "异常：断网重连" > /tmp/net_gcxy_status
-                echo "正在重启接口并尝试认证" > /tmp/net_gcxy_action
+                echo "检测到网络未通 (状态码: $CHECK_HTTP)，准备认证" > /tmp/net_gcxy_action
+                echo "[$(date '+%Y-%m-%d %H:%M:%S')] 网络异常 (Code: $CHECK_HTTP)，准备重启接口..." >> "$LOG_FILE"
 
-                echo "[$(date '+%Y-%m-%d %H:%M:%S')] 网络断开，正在尝试修复网络..." >> "$LOG_FILE"
                 /sbin/ifdown wan
                 sleep 2
                 /sbin/ifup wan
                 sleep 10
                 do_auth "$PHONE"
-                echo "[$(date '+%Y-%m-%d %H:%M:%S')] 认证执行完毕" >> "$LOG_FILE"
-            else
-                # --- 新增：同步状态到 UI ---
-                echo "正在监控中..." > /tmp/net_gcxy_status
-                echo "网络正常，待机中" > /tmp/net_gcxy_action
-                echo "[$(date '+%Y-%m-%d %H:%M:%S')] 成功访问，网络连接正常" >> "$LOG_FILE"
+                
+                # --- 认证后立即进行“回马枪”验证 ---
+                echo "[$(date '+%Y-%m-%d %H:%M:%S')] 认证提交完毕，正在最终验证..." >> "$LOG_FILE"
+                sleep 5
+                FINAL_CHECK=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 "http://www.baidu.com")
+                
+                if [ "$FINAL_CHECK" = "200" ]; then
+                    echo "正在监控中..." > /tmp/net_gcxy_status
+                    echo "认证成功，网络已恢复" > /tmp/net_gcxy_action
+                    echo "[$(date '+%Y-%m-%d %H:%M:%S')] 验证成功：网络已恢复正常 ✅" >> "$LOG_FILE"
+                else
+                    echo "异常：认证未生效" > /tmp/net_gcxy_status
+                    echo "认证后仍被拦截 (Code: $FINAL_CHECK)" > /tmp/net_gcxy_action
+                    echo "[$(date '+%Y-%m-%d %H:%M:%S')] 验证失败：认证后仍无法上网 ❌" >> "$LOG_FILE"
+                fi
             fi
 
             # 保持日志文件不要太大
             sed -i ':a;$q;N;101,$D;ba' "$LOG_FILE"
-
-            # 随机间隔
             RANDOM_INTERVAL=$((MIN_INTERVAL + RANDOM % (MAX_INTERVAL - MIN_INTERVAL + 1)))
-
-            # --- 新增：同步倒计时到 UI ---
             echo "等待下次检测 ($RANDOM_INTERVAL 秒)" > /tmp/net_gcxy_action
-            
             echo "[$(date '+%Y-%m-%d %H:%M:%S')] 等待 $RANDOM_INTERVAL 秒..." >> "$LOG_FILE"
             sleep "$RANDOM_INTERVAL"
         done

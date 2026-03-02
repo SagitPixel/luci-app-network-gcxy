@@ -1,20 +1,20 @@
 local fs = require "nixio.fs"
 
 -- 定义 Map
-m = Map("network-gcxy", "校园网自动认证 (GCXY)", "后台检测网络状态，断网自动尝试重连。")
+m = Map("network-gcxy", "新疆工程学院宿舍网络自动认证", "后台检测网络状态，断网自动尝试重连。")
 
 -- ==================== 状态监控小节 ====================
 s_status = m:section(TypedSection, "login", "当前状态")
 s_status.anonymous = true
 
--- 1. 显示插件是否在运行
+-- 1. 显示插件是否运行
+status = s_status:option(DummyValue, "_status", "运行状态")
 function status.cfgvalue(self, section)
-    -- 检查进程列表中是否有我们的脚本在运行
-    local running = luci.sys.call("pgrep -f /usr/bin/network-gcxy.sh >/dev/null") == 0
-    if running then
-        return "🟢 正在监控中..."
+    local s = luci.sys.exec("cat /tmp/net_gcxy_status 2>/dev/null")
+    if s and s ~= "" then
+        return "🟢 " .. s
     else
-        return "🔴 脚本未启动"
+        return "⚪ 插件未启动"
     end
 end
 
@@ -49,6 +49,7 @@ t.rows = 12
 function t.cfgvalue()
     return fs.readfile("/var/log/network_gcxy.log") or "等待日志生成..."
 end
+
 
 -- 6. 按钮：清理日志
 btn = s:option(Button, "_clear", "清理日志内容")
@@ -85,5 +86,43 @@ function btn_test.write(self, section)
     luci.http.redirect(luci.dispatcher.build_url("admin", "network", "gcxy"))
 end
 
--- 最后一步：必须在这里返回 m
+--页面自动刷新
+local ajax_js = s:option(DummyValue, "_ajax_js")
+ajax_js.rawhtml = true
+ajax_js.value = [[
+<script type="text/javascript">
+    function updateStatus() {
+        // 如果用户正在输入手机号，不执行更新
+        var phoneInput = document.getElementsByName('cbid.network-gcxy.main.phone')[0];
+        if (document.activeElement === phoneInput) return;
+
+        XHR.get(']] .. luci.dispatcher.build_url("admin", "network", "gcxy") .. [[', null,
+            function(x, data) {
+                var tempDiv = document.createElement('div');
+                tempDiv.innerHTML = x.responseText;
+
+                // 1. 更新日志文本框 (并自动滚动到底部)
+                var newLog = tempDiv.querySelector('textarea[name="cbid.network-gcxy.main.logview"]');
+                var oldLog = document.querySelector('textarea[name="cbid.network-gcxy.main.logview"]');
+                if (newLog && oldLog && oldLog.value !== newLog.value) {
+                    oldLog.value = newLog.value;
+                    oldLog.scrollTop = oldLog.scrollHeight;
+                }
+
+                // 2. 更新所有状态单元格 (包含图标的)
+                var currentFields = document.querySelectorAll('.cbi-value-field');
+                var newFields = tempDiv.querySelectorAll('.cbi-value-field');
+                newFields.forEach(function(field, i) {
+                    if (field.innerText.match(/[🟢⏳✅🔄🔴]/) && currentFields[i]) {
+                        currentFields[i].innerHTML = field.innerHTML;
+                    }
+                });
+            }
+        );
+    }
+    // 2 秒刷新一次，响应极快
+    setInterval(updateStatus, 2000);
+</script>
+]]
+
 return m
