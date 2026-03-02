@@ -74,10 +74,14 @@ case "$1" in
         while true; do
             # 重新读取开关，防止网页关闭了脚本还在跑
             [ "$(uci -q get network-gcxy.main.enabled)" != "1" ] && exit 0
+
+            # --- 同步状态到 UI ---
+            echo "正在检测中..." > /tmp/net_gcxy_status
+            echo "正在发起拨测..." > /tmp/net_gcxy_action
             
-            echo "[$(date '+%Y-%m-%d %H:%M:%S')] 开始网络检测..." >> "$LOG_FILE"
+            echo "[$(date '+%Y-%m-%d %H:%M:%S')] 正在检测中..." >> "$LOG_FILE"
+            
             failed_count=0
-            
             for url in $TARGET_URLS; do
                 if ! curl -I -s -m "$TIMEOUT" "$url" >/dev/null 2>&1; then
                     failed_count=$((failed_count + 1))
@@ -85,14 +89,22 @@ case "$1" in
             done
 
             if [ "$failed_count" -eq 3 ]; then
-                echo "[$(date '+%Y-%m-%d %H:%M:%S')] 全部失败，重启 WAN 接口..." >> "$LOG_FILE"
+                # --- 同步状态到 UI ---
+                echo "异常：断网重连" > /tmp/net_gcxy_status
+                echo "正在重启接口并尝试认证" > /tmp/net_gcxy_action
+
+                echo "[$(date '+%Y-%m-%d %H:%M:%S')] 网络断开，正在尝试修复网络..." >> "$LOG_FILE"
                 /sbin/ifdown wan
                 sleep 2
                 /sbin/ifup wan
                 sleep 10
                 do_auth "$PHONE"
+                echo "[$(date '+%Y-%m-%d %H:%M:%S')] 认证执行完毕" >> "$LOG_FILE"
             else
-                echo "[$(date '+%Y-%m-%d %H:%M:%S')] 网络正常，无需操作。" >> "$LOG_FILE"
+                # --- 新增：同步状态到 UI ---
+                echo "正在监控中..." > /tmp/net_gcxy_status
+                echo "网络正常，待机中" > /tmp/net_gcxy_action
+                echo "[$(date '+%Y-%m-%d %H:%M:%S')] 成功访问，网络连接正常" >> "$LOG_FILE"
             fi
 
             # 保持日志文件不要太大
@@ -100,6 +112,10 @@ case "$1" in
 
             # 随机间隔
             RANDOM_INTERVAL=$((MIN_INTERVAL + RANDOM % (MAX_INTERVAL - MIN_INTERVAL + 1)))
+
+            # --- 新增：同步倒计时到 UI ---
+            echo "等待下次检测 ($RANDOM_INTERVAL 秒)" > /tmp/net_gcxy_action
+            
             echo "[$(date '+%Y-%m-%d %H:%M:%S')] 等待 $RANDOM_INTERVAL 秒..." >> "$LOG_FILE"
             sleep "$RANDOM_INTERVAL"
         done

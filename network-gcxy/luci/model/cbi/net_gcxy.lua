@@ -8,31 +8,25 @@ s_status = m:section(TypedSection, "login", "当前状态")
 s_status.anonymous = true
 
 -- 1. 显示插件是否在运行
-status = s_status:option(DummyValue, "_status", "运行状态")
 function status.cfgvalue(self, section)
-    local enabled = m:get(section, "enabled")
-    if enabled == "1" then
+    -- 检查进程列表中是否有我们的脚本在运行
+    local running = luci.sys.call("pgrep -f /usr/bin/network-gcxy.sh >/dev/null") == 0
+    if running then
         return "🟢 正在监控中..."
     else
-        return "⚪ 插件已禁用"
+        return "🔴 脚本未启动"
     end
 end
 
--- 2. 实时抓取日志最后一条关键信息
+-- 2. 实时抓取最新动态
 msg = s_status:option(DummyValue, "_last_msg", "最新动态")
 function msg.cfgvalue(self, section)
-    -- 从日志文件最后 5 行里找最近的一条记录
-    local last_log = luci.sys.exec("tail -n 5 /var/log/network_gcxy.log 2>/dev/null")
-    if not last_log or last_log == "" then
-        return "尚无运行记录"
+    -- 读取 /tmp/net_gcxy_action 里的内容
+    local status_action = luci.sys.exec("cat /tmp/net_gcxy_action 2>/dev/null")
+    if not status_action or status_action == "" then
+        return "⏳ 等待脚本初始化..."
     end
-
-    if last_log:match("成功访问") then return "✅ 网络连接正常"
-    elseif last_log:match("认证执行完毕") then return "🚀 认证请求已发送"
-    elseif last_log:match("警告") then return "⚠️ 无法获取MAC地址"
-    elseif last_log:match("错误") then return "❌ 获取IP失败"
-    elseif last_log:match("网络断开") then return "🔄 正在尝试修复网络..."
-    else return "⏳ 正在检测中..." end
+    return "⏳ " .. status_action
 end
 
 -- ==================== 配置管理小节 ====================
